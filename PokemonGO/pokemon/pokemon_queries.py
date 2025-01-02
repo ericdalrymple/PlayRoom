@@ -222,7 +222,7 @@ def get_team_defense_rating(typesA, typesB, typesC):
     ratingB = get_defender_rating(typesB[0], typesB[1])
     ratingC = get_defender_rating(typesC[0], typesC[1])
 
-    return rating + ((ratingA + ratingB + ratingC) / 3.0)
+    return (rating + ((ratingA + ratingB + ratingC) / 3.0)) * 0.5
 
 
 def get_team_defense_ratings(threshold = -1, includes = []):
