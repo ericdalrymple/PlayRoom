@@ -1,5 +1,4 @@
 import collections
-import operator
 from pokemon import pokemon_types as pt
 
 def team_hash(pairA, pairB, pairC):
@@ -7,6 +6,35 @@ def team_hash(pairA, pairB, pairC):
     hashB = pt.type_pair_hash(pairB)
     hashC = pt.type_pair_hash(pairC)
     return "[" + hashA + hashB + hashC + "]"
+
+
+def match_type(type, include_types, exclude_types):
+    match = True
+    
+    if (len(include_types) > 0) and (not type in include_types):
+        match = False
+
+    if (len(exclude_types) > 0) and (type in exclude_types):
+        match = False
+
+    return match
+
+
+def match_type_pair(pair, include_types, include_type_pairs, exclude_types, exclude_type_pairs):
+    
+    match = True
+    
+    if not match_type(pair[0], include_types, exclude_types) and not match_type(pair[1], include_types, exclude_types):
+        match = False
+    
+    pair_hash = pt.type_pair_hash(pair)
+    if (len(include_type_pairs) > 0) and (not pair_hash in include_type_pairs):
+        match = False
+
+    if (len(exclude_type_pairs) > 0) and (pair_hash in exclude_type_pairs):
+        match = False
+
+    return match
 
 
 """
@@ -171,11 +199,12 @@ def get_effectiveness_ratings(includes = []):
     return dict(sorted(ratings.items(), key=lambda kv:kv[1]))
 
 
-"""
-"""
-def get_defender_teams():
-    teams = {}
-    return teams
+def get_possible_teams(pairA, pairB, pairC):
+    pokemonA = get_pokemon_by_type_pair(pairA)
+    pokemonB = get_pokemon_by_type_pair(pairB)
+    pokemonC = get_pokemon_by_type_pair(pairC)
+    return [pokemonA, pokemonB, pokemonC]
+
 
 
 def get_type_likelihood(pair):
@@ -183,15 +212,7 @@ def get_type_likelihood(pair):
     return pt.TYPE_HISTOGRAM[hash] / len(pt.POKEMON_DB.items())
 
 
-"""
-Returns a defense rating for a given team of 3 Pokemon with the
-specified type combinations. A value between -1 and 1 where -1
-indicates the team is vulnerable to every type of attack, 1 indicates
-the team is not vulnerable to any type. Negative values indicate
-the team has more vulnerabilities than resistances and positive values
-indicate the team has more resistances than vulnerabilities.
-"""
-def get_team_defense_rating(typesA, typesB, typesC):
+def get_team_defense_traits(typesA, typesB, typesC):
     team_weaknesses = set()
     team_resistances = set()
 
@@ -213,6 +234,22 @@ def get_team_defense_rating(typesA, typesB, typesC):
     team_weaknesses = (team_weaknesses | weaknesses) - resistances
     team_resistances = (team_resistances | resistances) - weaknesses
 
+    return [team_weaknesses, team_resistances]
+
+
+"""
+Returns a defense rating for a given team of 3 Pokemon with the
+specified type combinations. A value between -1 and 1 where -1
+indicates the team is vulnerable to every type of attack, 1 indicates
+the team is not vulnerable to any type. Negative values indicate
+the team has more vulnerabilities than resistances and positive values
+indicate the team has more resistances than vulnerabilities.
+"""
+def get_team_defense_rating(typesA, typesB, typesC):
+    traits = get_team_defense_traits(typesA, typesB, typesC)
+    team_weaknesses = traits[0]
+    team_resistances = traits[1]
+
     effective_count = len(pt.TYPES) - 1
     wr = len(team_weaknesses) / effective_count
     rr = len(team_resistances) / effective_count
@@ -225,7 +262,7 @@ def get_team_defense_rating(typesA, typesB, typesC):
     return (rating + ((ratingA + ratingB + ratingC) / 3.0)) * 0.5
 
 
-def get_team_defense_ratings(threshold = -1, includes = []):
+def get_team_defense_ratings(threshold = -1, includes = set(), include_pairs = set(), excludes = set(), exclude_pairs = set(), strict_include = True):
     ratings = {}
 
     types = list(pt.REAL_TYPE_PAIRS.values())
@@ -233,22 +270,38 @@ def get_team_defense_ratings(threshold = -1, includes = []):
         foundA = False
 
         a = types[i]
-        if len(includes) == 0 or (a[0] in includes or a[1] in includes):
+        if match_type_pair(a, includes, include_pairs, set(), set()):
             foundA = True
+        elif strict_include:
+            continue
+        
+        if not match_type_pair(a, set(), set(), excludes, exclude_pairs):
+            continue
 
         for j in range(i, len(types)):
             foundB = False
 
             b = types[j]
-            if len(includes) == 0 or (b[0] in includes or b[1] in includes):
+            if match_type_pair(b, includes, include_pairs, set(), set()):
                 foundB = True
+            elif strict_include:
+                continue
+            
+            if not match_type_pair(b, set(), set(), excludes, exclude_pairs):
+                continue
 
             for k in range(j, len(types)):
                 foundC = False
 
                 c = types[k]
-                if len(includes) == 0 or (c[0] in includes or c[1] in includes):
+                hashC = pt.type_pair_hash(c)
+                if match_type_pair(c, includes, include_pairs, set(), set()):
                     foundC = True
+                elif strict_include:
+                    continue
+                
+                if not match_type_pair(c, set(), set(), excludes, exclude_pairs):
+                    continue
 
                 if not foundA and not foundB and not foundC:
                     continue
@@ -261,6 +314,15 @@ def get_team_defense_ratings(threshold = -1, includes = []):
                 ratings[hash] = rating
 
     return dict(sorted(ratings.items(), key=lambda kv:kv[1]))
+
+
+def get_pokemon(include_types, include_type_pairs, exclude_types, exclude_type_pairs):
+    result = {}
+    for pokemon, pair in pt.POKEMON_DB.items():
+        if match_type_pair(pair, include_types, include_type_pairs, exclude_types, exclude_type_pairs):
+            result[pokemon] = pair
+    
+    return result
 
 
 def get_pokemon_by_type(includes):
