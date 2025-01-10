@@ -194,7 +194,7 @@ POKEMON_DB = {
     'GRIMER'                    :[POISON    , NONE],
     'GRIMER (ALOLAN)'           :[POISON    , DARK],
     'MUK'                       :[POISON    , NONE],
-    'MUK'                       :[POISON    , DARK],
+    'MUK (ALOLAN)'              :[POISON    , DARK],
     'SHELLDER'                  :[WATER     , NONE],
     'CLOYSTER'                  :[WATER     , ICE],
     'GASTLY'                    :[GHOST     , POISON],
